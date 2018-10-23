@@ -1,6 +1,8 @@
 import numpy as np
 import cv2
 
+# Test Git sync
+
 # Identify pixels above the threshold
 # Threshold of RGB > 160 does a nice job of identifying ground pixels only
 def color_thresh(img, rgb_thresh=(160, 160, 160)):
