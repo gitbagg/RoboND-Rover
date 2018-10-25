@@ -1,23 +1,36 @@
 import numpy as np
 import cv2
 
-# Test Git sync
 
 # Identify pixels above the threshold
 # Threshold of RGB > 160 does a nice job of identifying ground pixels only
-def color_thresh(img, rgb_thresh=(160, 160, 160)):
+def color_thresh(img, rgb_thresh_low=(160, 160, 160), rgb_thresh_high=(255, 255, 255)):
     # Create an array of zeros same xy size as img, but single channel
     color_select = np.zeros_like(img[:,:,0])
-    # Require that each pixel be above all three threshold values in RGB
-    # above_thresh will now contain a boolean array with "True"
+    # Require that each pixel be within all three threshold values in RGB
+    # defined by rgb_thresh_low and rgb_thresh_high
+    # within_thresh will now contain a boolean array with "True"
     # where threshold was met
-    above_thresh = (img[:,:,0] > rgb_thresh[0]) \
-                & (img[:,:,1] > rgb_thresh[1]) \
-                & (img[:,:,2] > rgb_thresh[2])
+    within_thresh = (img[:,:,0] > rgb_thresh_low[0]) & (img[:,:,0] < rgb_thresh_high[0]) \
+                & (img[:,:,1] > rgb_thresh_low[1]) & (img[:,:,1] < rgb_thresh_high[1]) \
+                & (img[:,:,2] > rgb_thresh_low[2]) & (img[:,:,2] < rgb_thresh_high[2]) \
     # Index the array of zeros with the boolean array and set to 1
-    color_select[above_thresh] = 1
+    color_select[within_thresh] = 1
     # Return the binary image
     return color_select
+
+
+# Define a function to return thresholded navigable pixels
+def navigable_thresh(img):
+    # Call color_thresh using ground color thresholds
+    return color_thresh(img, (160, 160, 160), (255, 255, 255))
+
+
+# Define a function to return thresholded navigable pixels
+def samples_thresh(img):
+    # Call color_thresh using rock sample color thresholds
+    return color_thresh(img, (150, 150, 0), (256, 256, 100))
+
 
 # Define a function to convert from image coords to rover coords
 def rover_coords(binary_img):
@@ -71,6 +84,7 @@ def pix_to_world(xpix, ypix, xpos, ypos, yaw, world_size, scale):
     # Return the result
     return x_pix_world, y_pix_world
 
+
 # Define a function to perform a perspective transform
 def perspect_transform(img, src, dst):
            
@@ -86,26 +100,56 @@ def perception_step(Rover):
     # TODO: 
     # NOTE: camera image is coming to you in Rover.img
     # 1) Define source and destination points for perspective transform
+    dst_size = 5
+    bottom_offset = 6
+    source = np.float32([[14, 140], [301, 140], [200, 96], [118, 96]])
+    destination = np.float32([[Rover.img.shape[1] / 2 - dst_size, Rover.img.shape[0] - bottom_offset],
+                              [Rover.img.shape[1] / 2 + dst_size, Rover.img.shape[0] - bottom_offset],
+                              [Rover.img.shape[1] / 2 + dst_size, Rover.img.shape[0] - 2 * dst_size - bottom_offset],
+                              [Rover.img.shape[1] / 2 - dst_size, Rover.img.shape[0] - 2 * dst_size - bottom_offset],
+                              ])
+    
     # 2) Apply perspective transform
+    warped = perspect_transform(Rover.img, source, destination)
+    mask = perspect_transform(np.ones_like(Rover.img[:, :, 0]), source, destination)
+
     # 3) Apply color threshold to identify navigable terrain/obstacles/rock samples
+    navigable = navigable_thresh(warped)
+    not_navigable = (navigable == 0)
+    obstacles = (mask & not_navigable)
+    samples = samples_thresh(warped)
+
     # 4) Update Rover.vision_image (this will be displayed on left side of screen)
-        # Example: Rover.vision_image[:,:,0] = obstacle color-thresholded binary image
-        #          Rover.vision_image[:,:,1] = rock_sample color-thresholded binary image
-        #          Rover.vision_image[:,:,2] = navigable terrain color-thresholded binary image
+    Rover.vision_image[:, :, 0] = obstacles * 255
+    Rover.vision_image[:, :, 1] = samples * 255
+    Rover.vision_image[:, :, 2] = navigable * 255
 
     # 5) Convert map image pixel values to rover-centric coords
+    navigable_x, navigable_y = rover_coords(navigable)
+    obstacle_x, obstacle_y = rover_coords(obstacles)
+    samples_x, samples_y = rover_coords(samples)
+
     # 6) Convert rover-centric pixel values to world coordinates
+    xpos = Rover.pos[0]
+    ypos = Rover.pos[1]
+    yaw = Rover.yaw
+    worldsize = Rover.worldmap.shape[0]
+    scale = dst_size * 2
+    navigable_x_world, navigable_y_world = pix_to_world(navigable_x, navigable_y, xpos, ypos, yaw, worldsize, scale)
+    obstacle_x_world, obstacle_y_world = pix_to_world(obstacle_x, obstacle_y, xpos, ypos, yaw, worldsize, scale)
+    samples_x_world, samples_y_world = pix_to_world(samples_x, samples_y, xpos, ypos, yaw, worldsize, scale)
+
     # 7) Update Rover worldmap (to be displayed on right side of screen)
-        # Example: Rover.worldmap[obstacle_y_world, obstacle_x_world, 0] += 1
-        #          Rover.worldmap[rock_y_world, rock_x_world, 1] += 1
-        #          Rover.worldmap[navigable_y_world, navigable_x_world, 2] += 1
+    # Add navigable terrain as blue
+    Rover.worldmap[navigable_y_world, navigable_x_world, 2] += 10
+    # Add obstacles as red
+    Rover.worldmap[obstacle_y_world, obstacle_x_world, 0] += 1
+    # Add samples as white
+    Rover.worldmap[samples_y_world, samples_x_world, 1] += 1
 
     # 8) Convert rover-centric pixel positions to polar coordinates
-    # Update Rover pixel distances and angles
-        # Rover.nav_dists = rover_centric_pixel_distances
-        # Rover.nav_angles = rover_centric_angles
-    
- 
-    
+    Rover.nav_dists, Rover.nav_angles = to_polar_coords(navigable_x, navigable_y)
+    if samples_x_world.nonzero():
+        Rover.samp_dist, Rover.samp_angles = to_polar_coords(samples_x, samples_y)
     
     return Rover
