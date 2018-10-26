@@ -1,20 +1,26 @@
 import numpy as np
-import time
 
 
 # This is where you can build a decision tree for determining throttle, brake and steer 
 # commands based on the output of the perception_step() function
 def decision_step(Rover):
+
+    # Implement conditionals to decide what to do given perception data
+    # Here you're all set up with some basic functionality but you'll need to
+    # improve on this decision tree to do a good job of navigating autonomously!
+    print(Rover.mode)
     # Check if we have vision data to make decisions with
-    # First check if we're close to an already found sample
     if Rover.nav_angles is not None:
         # Check for Rover.mode status
         if Rover.mode == 'forward':
-            if Rover.sample_angle is not None:
-                # Switch to approach_sample mode
+            # Check if samples are in view
+            if Rover.sample_dist is not None and len(Rover.sample_dist) > 10:
+                # Immediately brake if we see a sample and switch to approach_sample mode
+                # Set mode to "stop" and hit the brakes!
+                Rover.throttle = 0
+                Rover.brake = Rover.brake_set
+                Rover.steer = 0
                 Rover.mode = 'face_sample'
-                # And start our sample timer
-                Rover.sample_timer = time.time()
             # Check the extent of navigable terrain
             elif len(Rover.nav_angles) >= Rover.stop_forward:
                 # If mode is forward, navigable terrain looks good 
@@ -63,15 +69,9 @@ def decision_step(Rover):
                     Rover.mode = 'forward'
 
         elif Rover.mode == 'face_sample':
-            # Make sure we can still see the sample
+            # Make sure we can still see the sample, otherwise return to normal operation
             if Rover.sample_dist is None:
-                # Check if we've timed out
-                if time.time() - Rover.sample_timer > Rover.sample_timeout:
-                    Rover.mode = 'forward'
-                # Otherwise perturb the rover to find the sample
-                else:
-                    Rover.throttle = 0.05
-                    Rover.steer /= 2
+                Rover.throttle = 0.1
             else:
                 # No matter what, turn towards the sample
                 Rover.steer = 15 if Rover.sample_angle > 0 else -15
@@ -84,29 +84,19 @@ def decision_step(Rover):
                     # Otherwise turn to face it
                     else:
                         Rover.brake = 0
-                # Else we're facing it and should start the approach and restart the timer
+                # Else we're facing it and should start the approach
                 else:
                     Rover.mode = 'approach_sample'
-                    Rover.sample_timer = time.time()
 
         elif Rover.mode == 'approach_sample':
-            # Make sure we can still see the sample
+            # Make sure we can still see the sample, otherwise return to normal operation
             if Rover.sample_dist is None:
-                # Check if we've timed out
-                if time.time() - Rover.sample_timer > Rover.sample_timeout:
-                    Rover.mode = 'forward'
-                # Otherwise perturb the rover to find the sample
-                else:
-                    Rover.throttle = 0.05
-                    Rover.steer /= 2
+                Rover.throttle = 0.1
             else:
                 # Keep steering towards the sample as we move forward
                 Rover.steer = np.clip(Rover.sample_angle * 180 / np.pi, -15, 15)
                 # If the sample is too far away, move towards it, otherwise initiate stopping
                 if Rover.sample_dist > 10:
-                    if time.time() - Rover.sample_timer > Rover.sample_timeout:
-                        Rover.steer += np.clip(np.mean(Rover.nav_angles * 180/np.pi), -15, 15)  * 0.5
-                        Rover.sample_timer = time.time()
                     if Rover.vel > 0.2:
                         Rover.throttle = 0
                     else:
@@ -121,6 +111,8 @@ def decision_step(Rover):
     # If in a state where want to pickup a rock send pickup command
     if Rover.near_sample and Rover.vel == 0 and not Rover.picking_up:
         Rover.send_pickup = True
+        Rover.mode = 'forward'
+        Rover.sample_dist, Rover.sample_angle = None, None
     
     return Rover
 

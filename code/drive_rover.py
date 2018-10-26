@@ -51,12 +51,14 @@ class RoverState():
         self.brake = 0 # Current brake value
         self.nav_angles = None # Angles of navigable terrain pixels
         self.nav_dists = None # Distances of navigable terrain pixels
-        self.samp_angles = None  # Angles of sample pixels
-        self.samp_dists = None  # Distances of sample pixels
+        self.sample_angle = None  # Angles of sample pixels
+        self.sample_dist = None  # Distances of sample pixels
+        self.sample_timer = None # Timer for sample pickup timeout
+        self.sample_timeout = 5 # Sample pickup timeout
         self.ground_truth = ground_truth_3d # Ground truth worldmap
         self.mode = 'forward' # Current mode (can be forward or stop)
-        self.throttle_set = 0.2 # Throttle setting when accelerating
-        self.brake_set = 10 # Brake setting when braking
+        self.throttle_set = 0.2  # Throttle setting when accelerating
+        self.brake_set = 10  # Brake setting when braking
         # The stop_forward and go_forward fields below represent total count
         # of navigable terrain pixels.  This is a very crude form of knowing
         # when you can keep going and when you should stop.  Feel free to
@@ -101,7 +103,7 @@ def telemetry(sid, data):
         fps = frame_counter
         frame_counter = 0
         second_counter = time.time()
-    print("Current FPS: {}".format(fps))
+    #print("Current FPS: {}".format(fps))
 
     if data:
         global Rover
@@ -175,6 +177,8 @@ def send_control(commands, image_string1, image_string2):
         data,
         skip_sid=True)
     eventlet.sleep(0)
+
+
 # Define a function to send the "pickup" command 
 def send_pickup():
     print("Picking up")
@@ -184,6 +188,8 @@ def send_pickup():
         pickup,
         skip_sid=True)
     eventlet.sleep(0)
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Remote Driving')
     parser.add_argument(

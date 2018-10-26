@@ -4,16 +4,16 @@ import cv2
 
 # Identify pixels above the threshold
 # Threshold of RGB > 160 does a nice job of identifying ground pixels only
-def color_thresh(img, rgb_thresh_low=(160, 160, 160), rgb_thresh_high=(255, 255, 255)):
+def color_thresh(img, rgb_thresh_low=(150, 150, 150), rgb_thresh_high=(255, 255, 255)):
     # Create an array of zeros same xy size as img, but single channel
     color_select = np.zeros_like(img[:,:,0])
     # Require that each pixel be within all three threshold values in RGB
     # defined by rgb_thresh_low and rgb_thresh_high
     # within_thresh will now contain a boolean array with "True"
     # where threshold was met
-    within_thresh = (img[:,:,0] > rgb_thresh_low[0]) & (img[:,:,0] < rgb_thresh_high[0]) \
-                & (img[:,:,1] > rgb_thresh_low[1]) & (img[:,:,1] < rgb_thresh_high[1]) \
-                & (img[:,:,2] > rgb_thresh_low[2]) & (img[:,:,2] < rgb_thresh_high[2]) \
+    within_thresh = (img[:,:,0] >= rgb_thresh_low[0]) & (img[:,:,0] <= rgb_thresh_high[0]) \
+                & (img[:,:,1] >= rgb_thresh_low[1]) & (img[:,:,1] <= rgb_thresh_high[1]) \
+                & (img[:,:,2] >= rgb_thresh_low[2]) & (img[:,:,2] <= rgb_thresh_high[2])
     # Index the array of zeros with the boolean array and set to 1
     color_select[within_thresh] = 1
     # Return the binary image
@@ -23,13 +23,13 @@ def color_thresh(img, rgb_thresh_low=(160, 160, 160), rgb_thresh_high=(255, 255,
 # Define a function to return thresholded navigable pixels
 def navigable_thresh(img):
     # Call color_thresh using ground color thresholds
-    return color_thresh(img, (160, 160, 160), (255, 255, 255))
+    return color_thresh(img, (180, 180, 165), (255, 255, 255))
 
 
 # Define a function to return thresholded navigable pixels
 def samples_thresh(img):
     # Call color_thresh using rock sample color thresholds
-    return color_thresh(img, (150, 150, 0), (256, 256, 100))
+    return color_thresh(img, (120, 120, 0), (255, 255, 70))
 
 
 # Define a function to convert from image coords to rover coords
@@ -140,16 +140,19 @@ def perception_step(Rover):
     samples_x_world, samples_y_world = pix_to_world(samples_x, samples_y, xpos, ypos, yaw, worldsize, scale)
 
     # 7) Update Rover worldmap (to be displayed on right side of screen)
-    # Add navigable terrain as blue
+    # Add navigable terrain to blue channel, weighted 10x due to encourage exploration
     Rover.worldmap[navigable_y_world, navigable_x_world, 2] += 10
-    # Add obstacles as red
+    # Add obstacles to red channel
     Rover.worldmap[obstacle_y_world, obstacle_x_world, 0] += 1
-    # Add samples as white
+    # Add samples to green channel
     Rover.worldmap[samples_y_world, samples_x_world, 1] += 1
 
     # 8) Convert rover-centric pixel positions to polar coordinates
     Rover.nav_dists, Rover.nav_angles = to_polar_coords(navigable_x, navigable_y)
-    if samples_x_world.nonzero():
-        Rover.samp_dist, Rover.samp_angles = to_polar_coords(samples_x, samples_y)
-    
+    if samples_x.any():
+        sample_dist, sample_angles = to_polar_coords(samples_x, samples_y)
+        Rover.sample_dist, Rover.sample_angle = np.min(sample_dist), np.mean(sample_angles)
+    else:
+        Rover.sample_dist, Rover.sample_angle = None, None
+
     return Rover
