@@ -13,8 +13,6 @@ def decision_step(Rover):
             if Rover.sample_angle is not None:
                 # Switch to approach_sample mode
                 Rover.mode = 'face_sample'
-                # And start our sample timer
-                Rover.sample_timer = time.time()
             # Check the extent of navigable terrain
             elif len(Rover.nav_angles) >= Rover.stop_forward:
                 # If mode is forward, navigable terrain looks good 
@@ -63,31 +61,20 @@ def decision_step(Rover):
                     Rover.mode = 'forward'
 
         elif Rover.mode == 'face_sample':
-            # Make sure we can still see the sample
-            if Rover.sample_dist is None:
-                # Check if we've timed out
-                if time.time() - Rover.sample_timer > Rover.sample_timeout:
-                    Rover.mode = 'forward'
-                # Otherwise perturb the rover to find the sample
-                else:
-                    Rover.throttle = 0.05
-                    Rover.steer /= 2
+            # Hit the brakes if we're still moving
+            if Rover.vel > 0.2:
+                Rover.brake = Rover.brake_set
+            # Else, turn to face the sample
             else:
-                # No matter what, turn towards the sample
-                Rover.steer = 15 if Rover.sample_angle > 0 else -15
-                # If we're not facing the sample, stop and turn towards it
-                if np.abs(Rover.sample_angle * 180 / np.pi) > 5:
-                    Rover.throttle = 0
-                    # If we're still moving, brake
-                    if Rover.vel > 0.2:
-                        Rover.brake = Rover.brake_set
-                    # Otherwise turn to face it
+                Rover.brake = 0
+                if Rover.sample_angle is not None:
+                    # While we're not facing the sample directly, turn towards it
+                    if np.abs(Rover.sample_angle * 180 / np.pi) > 10:
+                        Rover.steer = np.clip(Rover.sample_angle * 180 / np.pi, -15, 15)
+                    # Else we're facing it and should start the approach and restart the timer
                     else:
-                        Rover.brake = 0
-                # Else we're facing it and should start the approach and restart the timer
-                else:
-                    Rover.mode = 'approach_sample'
-                    Rover.sample_timer = time.time()
+                        Rover.mode = 'approach_sample'
+                        Rover.sample_timer = time.time()
 
         elif Rover.mode == 'approach_sample':
             # Make sure we can still see the sample
@@ -105,7 +92,7 @@ def decision_step(Rover):
                 # If the sample is too far away, move towards it, otherwise initiate stopping
                 if Rover.sample_dist > 10:
                     if time.time() - Rover.sample_timer > Rover.sample_timeout:
-                        Rover.steer += np.clip(np.mean(Rover.nav_angles * 180/np.pi), -15, 15)  * 0.5
+                        Rover.steer += np.clip(np.mean(Rover.nav_angles * 180/np.pi), -15, 15) * 0.5
                         Rover.sample_timer = time.time()
                     if Rover.vel > 0.2:
                         Rover.throttle = 0

@@ -98,8 +98,8 @@ def perspect_transform(img, src, dst):
 # Apply the above functions in succession and update the Rover state accordingly
 def perception_step(Rover):
     # Perform perception steps to update Rover()
-    # TODO: 
     # NOTE: camera image is coming to you in Rover.img
+
     # 1) Define source and destination points for perspective transform
     dst_size = 5
     bottom_offset = 6
@@ -114,16 +114,11 @@ def perception_step(Rover):
     warped = perspect_transform(Rover.img, source, destination)
     mask = perspect_transform(np.ones_like(Rover.img[:, :, 0]), source, destination)
 
-    # 3) Truncate the mask to only near field pixels
-    mask[:40, :] = 0
-
     # 3) Apply color threshold to identify navigable terrain/obstacles/rock samples
-    unmasked_navigable = navigable_thresh(warped)
-    navigable = (mask & unmasked_navigable)
-    unmasked_obstacles = (unmasked_navigable == 0)
-    obstacles = (mask & unmasked_obstacles)
-    unmasked_samples = samples_thresh(warped)
-    samples = (mask & unmasked_samples)
+    navigable = navigable_thresh(warped)
+    not_navigable = (navigable == 0)
+    obstacles = (mask & not_navigable)
+    samples = samples_thresh(warped)
 
     # 4) Update Rover.vision_image (this will be displayed on left side of screen)
     Rover.vision_image[:, :, 0] = obstacles * 255
@@ -151,7 +146,7 @@ def perception_step(Rover):
        or Rover.roll > 0.5 or 360 - Rover.roll < 0.5:
         stable = False
 
-    # 7) Update Rover worldmap if the Rover's camera is stable
+    # 8) Update Rover worldmap if the Rover's camera is stable
     if stable:
         # Add navigable terrain to blue channel, weighted 10x due to encourage exploration
         Rover.worldmap[navigable_y_world, navigable_x_world, 2] += 10
@@ -160,7 +155,7 @@ def perception_step(Rover):
         # Add samples to green channel
         Rover.worldmap[samples_y_world, samples_x_world, 1] += 1
 
-    # 8) Convert rover-centric pixel positions to polar coordinates
+    # 9) Convert rover-centric pixel positions to polar coordinates
     Rover.nav_dists, Rover.nav_angles = to_polar_coords(navigable_x, navigable_y)
     if samples_x.any():
         sample_dist, sample_angles = to_polar_coords(samples_x, samples_y)
