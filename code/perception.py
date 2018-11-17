@@ -23,7 +23,7 @@ def color_thresh(img, rgb_thresh_low=(150, 150, 150), rgb_thresh_high=(255, 255,
 # Define a function to return thresholded navigable pixels
 def navigable_thresh(img):
     # Call color_thresh using ground color thresholds
-    return color_thresh(img, (160, 160, 160), (255, 255, 255))
+    return color_thresh(img, rgb_thresh_low=(130, 140, 150), rgb_thresh_high=(255, 255, 255))
 
 
 # Define a function to return thresholded navigable pixels
@@ -111,13 +111,16 @@ def perception_step(Rover):
                               ])
 
     # 2) Apply perspective transform
+    pre_mask = np.zeros_like(Rover.img[:, :, 0])
+    pre_mask[82:, :] = 1
+    mask = perspect_transform(pre_mask, source, destination)
     warped = perspect_transform(Rover.img, source, destination)
-    mask = perspect_transform(np.ones_like(Rover.img[:, :, 0]), source, destination)
 
     # 3) Apply color threshold to identify navigable terrain/obstacles/rock samples
-    navigable = navigable_thresh(warped)
+    pre_navigable = navigable_thresh(warped)
+    navigable = pre_navigable * mask
     not_navigable = (navigable == 0)
-    obstacles = (mask & not_navigable)
+    obstacles = not_navigable * mask
     samples = samples_thresh(warped)
 
     # 4) Update Rover.vision_image (this will be displayed on left side of screen)
@@ -142,13 +145,13 @@ def perception_step(Rover):
 
     # 7) Check for instability (significant pitch and roll)
     stable = True
-    if Rover.pitch > 1 or 360 - Rover.pitch < 1 \
-       or Rover.roll > 0.5 or 360 - Rover.roll < 0.5:
+    if Rover.pitch > 0.25 or 360.0 - Rover.pitch < 0.25 \
+       or Rover.roll > 0.5 or 360.0 - Rover.roll < 0.5:
         stable = False
 
     # 8) Update Rover worldmap if the Rover's camera is stable
     if stable:
-        # Add navigable terrain to blue channel, weighted 10x due to encourage exploration
+        # Add navigable terrain to blue channel
         Rover.worldmap[navigable_y_world, navigable_x_world, 2] += 10
         # Add obstacles to red channel
         Rover.worldmap[obstacle_y_world, obstacle_x_world, 0] += 1

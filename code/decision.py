@@ -13,6 +13,8 @@ def decision_step(Rover):
             if Rover.sample_angle is not None:
                 # Switch to approach_sample mode
                 Rover.mode = 'face_sample'
+                # Start the timer
+                Rover.sample_timer = time.time()
             # Check the extent of navigable terrain
             elif len(Rover.nav_angles) >= Rover.stop_forward:
                 # If mode is forward, navigable terrain looks good 
@@ -23,8 +25,9 @@ def decision_step(Rover):
                 else: # Else coast
                     Rover.throttle = 0
                 Rover.brake = 0
+                steer_factor = Rover.vel / Rover.max_vel * 2 + 1
                 # Set steering to average angle clipped to the range +/- 15
-                Rover.steer = np.clip(np.mean(Rover.nav_angles * 180/np.pi), -15, 15)
+                Rover.steer = np.clip(np.mean(Rover.nav_angles * 180/np.pi / steer_factor), -15, 15)
             # If there's a lack of navigable terrain pixels then go to 'stop' mode
             elif len(Rover.nav_angles) < Rover.stop_forward:
                     # Set mode to "stop" and hit the brakes!
@@ -68,13 +71,18 @@ def decision_step(Rover):
             else:
                 Rover.brake = 0
                 if Rover.sample_angle is not None:
+                    # Reset the timeout timer
+                    # Restart the timer
+                    Rover.sample_timer = time.time()
                     # While we're not facing the sample directly, turn towards it
                     if np.abs(Rover.sample_angle * 180 / np.pi) > 10:
                         Rover.steer = np.clip(Rover.sample_angle * 180 / np.pi, -15, 15)
                     # Else we're facing it and should start the approach and restart the timer
                     else:
                         Rover.mode = 'approach_sample'
-                        Rover.sample_timer = time.time()
+                else:
+                    if time.time() - Rover.sample_timer > Rover.sample_timeout:
+                        Rover.mode = 'forward'
 
         elif Rover.mode == 'approach_sample':
             # Make sure we can still see the sample

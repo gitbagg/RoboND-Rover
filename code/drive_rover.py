@@ -35,6 +35,7 @@ ground_truth = mpimg.imread('../calibration_images/map_bw.png')
 # map output looks green in the display image
 ground_truth_3d = np.dstack((ground_truth*0, ground_truth*255, ground_truth*0)).astype(np.float)
 
+
 # Define RoverState() class to retain rover state parameters
 class RoverState():
     def __init__(self):
@@ -81,6 +82,8 @@ class RoverState():
         self.near_sample = 0 # Will be set to telemetry value data["near_sample"]
         self.picking_up = 0 # Will be set to telemetry value data["picking_up"]
         self.send_pickup = False # Set to True to trigger rock pickup
+
+
 # Initialize our rover 
 Rover = RoverState()
 
@@ -152,6 +155,7 @@ def telemetry(sid, data):
     else:
         sio.emit('manual', data={}, skip_sid=True)
 
+
 @sio.on('connect')
 def connect(sid, environ):
     print("connect ", sid)
@@ -161,6 +165,7 @@ def connect(sid, environ):
         "get_samples",
         sample_data,
         skip_sid=True)
+
 
 def send_control(commands, image_string1, image_string2):
     # Define commands to be sent to the rover
