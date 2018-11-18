@@ -1,14 +1,10 @@
 ## Project: Search and Sample Return
 
 
-[image1]: ./output/IMG/robocam_2018_10_29_14_14_55_338.jpg
-[image2]: ./output/IMG/robocam_2018_10_29_14_14_19_071.jpg
-[image3]: ./misc/rover_autonomous_screenshot.png
+[image]: ./misc/rover_autonomous_screenshot.png
 
 
 ### Notebook Analysis
-
-![image1] ![image2]
 
 I decided to write a single thresholding function `color_thresh()` that accepts and tests both a lower and upper bound for each RGB channel. The functions `navigable_thresh()` and `sample_thresh()` each call `color_thresh()`, passing appropriate threshold values for navigable terrain and samples, respectively. The limited environmental color pallette can complicate color thesholding, but the selected values in `navigable_thresh()` and `sample_thresh()` work well enough to complete this project.
 
@@ -52,4 +48,4 @@ Running the Rover in autonomous mode provides fairly good results. It typically 
 
 Four significant upgrades are suggested. The first is to intelligently utilize the built map. Navigable terrain should be weighted by past exploration, or, in other words, the Rover should tend to move towards unexplored terrain. The Rover should also utilize the map to determine optimal sample approaches to avoid getting stuck along the walls. The second upgrade would include a stuck state, such that if the Rover should happen to get stuck, it can activate a plan to become unstuck. The third upgrade would be stabilize its motion, which could be done by choosing destination points and moving towards them in straight lines. The fourth and final upgrade, though more substantial than the others, would to introduce  a better method for identifying the different environmental components. Our simple color thresholding could be dramatically improved with even a basic convolutional neural network. 
 
-![image3]
+![image]
