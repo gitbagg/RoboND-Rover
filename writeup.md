@@ -34,7 +34,7 @@ To give some autonomy to the rover, two of the provided files (`perception.py` a
 
 - The mask created in the notebook to ignore transformed pixels outside the camera's perspective was modified to also eliminate pixels that are far away, and this mask was applied to navigable terrain. Far away pixels were harder to determine, and by eliminating the sky, the navigable threshold could be slightly opened for a more accurate mapping.
 
-- Since the Rover will now take actions in `decision.py`, some guidance is needed to make decisions Navigable terrain and, if in view, rock sample pixels are vectorized and stored in Rover.
+- Since the Rover will now take actions in `decision.py`, some guidance is needed to make decisions based on what is found in `perception.py`. Navigable terrain and, if in view, rock sample pixels are vectorized and stored in Rover.
 
 Out of the box, `decision.py` came equipped to handle basic navigation. If navigable terrain data was available, it would move towards the most open terrain in view (the average of all navigable vectors). It could detect walls by thresholding the number of navigable pixels - when the number dropped too low, the Rover would initiate a stop and turn around sequence.
 
